@@ -78,11 +78,19 @@ resource "aws_lambda_function" "users" {
   # exported in that file.
   handler = "users.handler"
   runtime = "nodejs12.x"
-
+  timeout = 15
   role = aws_iam_role.lambda_exec.arn
   depends_on = [
-    aws_iam_role_policy_attachment.lambda_logs
+    aws_iam_role_policy_attachment.lambda_logs,
+    aws_cognito_user_pool_client.usersPool,
+    aws_dynamodb_table.usersTable
   ]
+  environment {
+    variables = {
+      COGNITO_POOL_ID = aws_cognito_user_pool.usersPool.id
+      COGNITO_POOL_CLIENT_ID = aws_cognito_user_pool_client.usersPool.id
+    }
+  }
 }
 
 resource "aws_iam_role" "lambda_exec" {
@@ -106,7 +114,6 @@ EOF
 
 }
 
-# See also the following AWS managed policy: AWSLambdaBasicExecutionRole
 resource "aws_iam_policy" "lambda_logging" {
   name        = "lambda_logging"
   path        = "/"
@@ -135,6 +142,68 @@ resource "aws_iam_role_policy_attachment" "lambda_logs" {
   policy_arn = aws_iam_policy.lambda_logging.arn
 }
 
+resource "aws_iam_policy" "lambda_dynamodb" {
+  name        = "lambda_dynamodb"
+  path        = "/"
+  description = "IAM policy for using dynamoDB User Table in lambda"
+
+  policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Action": "dynamodb:*",
+      "Resource": "arn:aws:dynamodb:*:*:table/Users",
+      "Effect": "Allow"
+    }
+  ]
+}
+EOF
+}
+
+resource "aws_iam_role_policy_attachment" "lambda_dynamodb" {
+  role       = aws_iam_role.lambda_exec.name
+  policy_arn = aws_iam_policy.lambda_dynamodb.arn
+}
+
+resource "aws_cognito_user_pool" "usersPool" {
+  name = "usersPool"
+  schema {
+    name                     = "userID"
+    attribute_data_type      = "String"
+    developer_only_attribute = false
+    mutable                  = false
+    required                 = false
+    string_attribute_constraints {
+      min_length = 36         
+      max_length = 36  # UUIDV4
+    }
+  }
+}
+
+resource "aws_cognito_user_pool_client" "usersPool" {
+  name = "usersPoolClient"
+
+  user_pool_id = aws_cognito_user_pool.usersPool.id
+  generate_secret = false
+}
+
+resource "aws_dynamodb_table" "usersTable" {
+  name           = "Users"
+  billing_mode   = "PROVISIONED"
+  read_capacity  = 1
+  write_capacity = 1
+  hash_key       = "UserId"
+  # range_key      = "GameTitle"
+
+  attribute {
+    name = "UserId"
+    type = "S"
+  }
+}
+
+
+# Outputs
 output "base_url" {
   value = aws_api_gateway_deployment.users.invoke_url
 }
