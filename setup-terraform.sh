@@ -1,0 +1,1 @@
+aws s3api create-bucket --bucket=valvid-terraform --region=us-east-1
