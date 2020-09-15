@@ -12,6 +12,7 @@ provider "aws" {
 variable "app_version" {
 }
 
+# CORS WILL BE AN ISSUE I THINK
 resource "aws_api_gateway_rest_api" "users" {
   name        = "UsersWorkflow"
   description = "API gateway for all user interactions"

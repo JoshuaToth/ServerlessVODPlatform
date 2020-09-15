@@ -17,7 +17,6 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(awsServerlessExpressMiddleware.eventContext());
 
 const AmazonCognitoIdentity = require("amazon-cognito-identity-js");
-// const CognitoUserPool = AmazonCognitoIdentity.CognitoUserPool;
 const { COGNITO_POOL_ID, COGNITO_POOL_CLIENT_ID } = process.env;
 const poolData = {
   UserPoolId: COGNITO_POOL_ID,
@@ -42,6 +41,7 @@ app.get("/users/healthcheck", (req, res) => {
 });
 
 app.post("/users/signup", async (req, res) => {
+  // Username should be validated and unique. It might be worth adding a secondary index to dynamo to do a search for it.
   const attributeList = [];
   const userID = uuidv4();
   attributeList.push(new AmazonCognitoIdentity.CognitoUserAttribute({ Name: "email", Value: req.body.email }));
@@ -52,7 +52,6 @@ app.post("/users/signup", async (req, res) => {
       res.json(err);
       return;
     }
-    const cognitoUser = result.user;
 
     const params = {
       Item: {
