@@ -1,8 +1,11 @@
 "use strict";
 const jwt = require("./utils/jwt");
+const AWS = require("aws-sdk");
+const dynamodb = new AWS.DynamoDB();
 
 exports.handler = async (event, _, callback) => {
   // Use jwt decode here
+  console.log('AUTHING');
   let token = {};
   try {
     token = jwt.verifyToken(event.authorizationToken);
@@ -26,20 +29,25 @@ exports.handler = async (event, _, callback) => {
         rej(err);
       } else {
         const username = data.Item.Username.S;
+        const userId = data.Item.UserId.S;
         const earliestTokenDate = data.Item.CertificateAgeLimit.N;
+        // Now no other lambda will need to access the users table.
         res({
           username,
+          userId,
           earliestTokenDate,
         });
       }
     })
   );
 
-  if (!userDetails) {
-  } else if (userDetails.earliestTokenDate > token.generatedAt) {
+  if (!userDetails || userDetails.earliestTokenDate > token.generatedAt) {
+    // TODO: Also add a check for token expiry.
     callback(null, generatePolicy("user", "Deny", event.methodArn));
   } else {
-    callback(null, generatePolicy("user", "Allow", event.methodArn, { ...token, ...userDetails }));
+    // Add a new token here with a more recent expiry for the frontend to use if it wants
+    const newToken = jwt.generateLoginToken(userDetails.userId, userDetails.username);
+    callback(null, generatePolicy("user", "Allow", event.methodArn, { ...token, ...userDetails, newToken }));
   }
 };
 

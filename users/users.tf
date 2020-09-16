@@ -153,13 +153,17 @@ resource "aws_iam_policy" "lambda_dynamodb" {
   "Statement": [
     {
       "Action": "dynamodb:*",
-      "Resource": "arn:aws:dynamodb:*:*:table/Users",
+      "Resource": [
+        "arn:aws:dynamodb:*:*:table/Users", 
+        "arn:aws:dynamodb:*:*:table/Videos"
+      ],
       "Effect": "Allow"
     }
   ]
 }
 EOF
 }
+# Typically the lambdas would have their own dynamo policy, the creators api doesn't need access to the users table
 
 resource "aws_iam_role_policy_attachment" "lambda_dynamodb" {
   role       = aws_iam_role.lambda_exec.name
@@ -262,7 +266,8 @@ resource "aws_lambda_function" "creators" {
   role    = aws_iam_role.lambda_exec.arn
   depends_on = [
     aws_iam_role_policy_attachment.lambda_logs,
-    aws_dynamodb_table.usersTable
+    aws_dynamodb_table.usersTable,
+    aws_dynamodb_table.videosTable
   ]
 }
 
@@ -330,8 +335,24 @@ resource "aws_iam_role_policy" "invocation_policy" {
 EOF
 }
 
-
 # new dynamo tables
+resource "aws_dynamodb_table" "videosTable" {
+  name           = "Videos"
+  billing_mode   = "PROVISIONED"
+  read_capacity  = 1
+  write_capacity = 1
+  hash_key       = "VideoId"
+  range_key      = "UserId"
+
+  attribute {
+    name = "VideoId"
+    type = "S"
+  }
+  attribute {
+    name = "UserId"
+    type = "S"
+  }
+}
 
 
 #####
