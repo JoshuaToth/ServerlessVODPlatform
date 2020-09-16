@@ -155,7 +155,9 @@ resource "aws_iam_policy" "lambda_dynamodb" {
       "Action": "dynamodb:*",
       "Resource": [
         "arn:aws:dynamodb:*:*:table/Users", 
-        "arn:aws:dynamodb:*:*:table/Videos"
+        "arn:aws:dynamodb:*:*:table/RawVideos",
+        "arn:aws:dynamodb:*:*:table/Videos", 
+        "arn:aws:dynamodb:*:*:table/Videos/index/*"
       ],
       "Effect": "Allow"
     }
@@ -289,11 +291,12 @@ resource "aws_lambda_function" "authorizer" {
 }
 
 resource "aws_api_gateway_authorizer" "users_authorizer" {
-  name                   = "users_authorizer"
-  rest_api_id            = aws_api_gateway_rest_api.valvid.id
-  authorizer_uri         = aws_lambda_function.authorizer.invoke_arn
-  authorizer_credentials = aws_iam_role.invocation_role.arn
-  type                   = "TOKEN"
+  name                             = "users_authorizer"
+  rest_api_id                      = aws_api_gateway_rest_api.valvid.id
+  authorizer_uri                   = aws_lambda_function.authorizer.invoke_arn
+  authorizer_credentials           = aws_iam_role.invocation_role.arn
+  authorizer_result_ttl_in_seconds = 0
+  type                             = "TOKEN"
 }
 
 resource "aws_iam_role" "invocation_role" {
@@ -328,14 +331,13 @@ resource "aws_iam_role_policy" "invocation_policy" {
     {
       "Action": "lambda:InvokeFunction",
       "Effect": "Allow",
-      "Resource": "${aws_lambda_function.authorizer.arn}"
+      "Resource": "*"
     }
   ]
 }
 EOF
 }
 
-# new dynamo tables
 resource "aws_dynamodb_table" "videosTable" {
   name           = "Videos"
   billing_mode   = "PROVISIONED"
@@ -351,6 +353,38 @@ resource "aws_dynamodb_table" "videosTable" {
   attribute {
     name = "UserId"
     type = "S"
+  }
+
+  global_secondary_index {
+    name            = "VideosUserIndex"
+    hash_key        = "UserId"
+    range_key       = "VideoId"
+    write_capacity  = 1
+    read_capacity   = 1
+    projection_type = "ALL"
+  }
+}
+
+resource "aws_dynamodb_table" "rawVideosTable" {
+  name           = "RawVideos"
+  billing_mode   = "PROVISIONED"
+  read_capacity  = 1
+  write_capacity = 1
+  hash_key       = "RawVideoId"
+
+  attribute {
+    name = "RawVideoId"
+    type = "S"
+  }
+}
+
+resource "aws_s3_bucket" "raw_videos" {
+  bucket = "valvid-raw-videos"
+  acl    = "private"
+
+  tags = {
+    Name        = "Raw videos"
+    Environment = "Dev"
   }
 }
 
