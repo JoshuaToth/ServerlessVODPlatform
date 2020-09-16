@@ -1,15 +1,46 @@
 "use strict";
 const jwt = require("./utils/jwt");
 
-exports.handler = function (event, _, callback) {
+exports.handler = async (event, _, callback) => {
   // Use jwt decode here
-  const token = jwt.verifyToken(event.authorizationToken);
-  if (!token) {
+  let token = {};
+  try {
+    token = jwt.verifyToken(event.authorizationToken);
+  } catch (e) {
     callback(null, generatePolicy("user", "Deny", event.methodArn));
   }
-//   console.log("sent event body", event.body);
-//   console.log("sent event", event);
-  callback(null, generatePolicy("user", "Allow", event.methodArn, token));
+
+  // validate user deets too
+  const params = {
+    TableName: "Users",
+    Key: {
+      UserId: {
+        S: token.userID,
+      },
+    },
+  };
+  const userDetails = await new Promise((res, rej) =>
+    dynamodb.getItem(params, function (err, data) {
+      if (err) {
+        console.log(err, err.stack);
+        rej(err);
+      } else {
+        const username = data.Item.Username.S;
+        const earliestTokenDate = data.Item.CertificateAgeLimit.N;
+        res({
+          username,
+          earliestTokenDate,
+        });
+      }
+    })
+  );
+
+  if (!userDetails) {
+  } else if (userDetails.earliestTokenDate > token.generatedAt) {
+    callback(null, generatePolicy("user", "Deny", event.methodArn));
+  } else {
+    callback(null, generatePolicy("user", "Allow", event.methodArn, { ...token, ...userDetails }));
+  }
 };
 
 // Help function to generate an IAM policy
