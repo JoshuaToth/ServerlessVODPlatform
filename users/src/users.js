@@ -7,9 +7,10 @@ const bodyParser = require("body-parser");
 const app = express();
 const cors = require("cors");
 const { v4: uuidv4 } = require("uuid");
-const jwt = require("jsonwebtoken");
 const AWS = require("aws-sdk");
 const dynamodb = new AWS.DynamoDB();
+
+const jwt = require('./utils/jwt')
 
 app.use(cors());
 app.use(bodyParser.json());
@@ -24,17 +25,6 @@ const poolData = {
 };
 const userPool = new AmazonCognitoIdentity.CognitoUserPool(poolData);
 
-const generateLoginToken = (userID, username) => {
-  const expiresAt = new Date();
-  expiresAt.setHours(expiresAt.getHours() + 2);
-  const token = {
-    userID,
-    username,
-    generatedAt: Date.now(),
-    expiresAt,
-  };
-  return jwt.sign(token, "superSecretHash"); // For the love of all, do not use this secret in prod hahaha
-};
 
 app.get("/users/healthcheck", (req, res) => {
   res.json({ path: "healthcheck", body: req.body, event: req.apiGateway.event });
@@ -121,7 +111,7 @@ app.post("/users/login", async (req, res) => {
           const username = data.Item.Username.S;
           res.json({
             path: "login",
-            session: generateLoginToken(UserID, username),
+            session: jwt.generateLoginToken(UserID, username),
           });
         }
       });

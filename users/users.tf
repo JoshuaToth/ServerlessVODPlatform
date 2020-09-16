@@ -79,7 +79,7 @@ resource "aws_lambda_function" "users" {
   handler = "users.handler"
   runtime = "nodejs12.x"
   timeout = 15
-  role = aws_iam_role.lambda_exec.arn
+  role    = aws_iam_role.lambda_exec.arn
   depends_on = [
     aws_iam_role_policy_attachment.lambda_logs,
     aws_cognito_user_pool_client.usersPool,
@@ -87,7 +87,7 @@ resource "aws_lambda_function" "users" {
   ]
   environment {
     variables = {
-      COGNITO_POOL_ID = aws_cognito_user_pool.usersPool.id
+      COGNITO_POOL_ID        = aws_cognito_user_pool.usersPool.id
       COGNITO_POOL_CLIENT_ID = aws_cognito_user_pool_client.usersPool.id
     }
   }
@@ -175,8 +175,8 @@ resource "aws_cognito_user_pool" "usersPool" {
     mutable                  = false
     required                 = false
     string_attribute_constraints {
-      min_length = 36         
-      max_length = 36  # UUIDV4
+      min_length = 36
+      max_length = 36 # UUIDV4
     }
   }
 }
@@ -184,7 +184,7 @@ resource "aws_cognito_user_pool" "usersPool" {
 resource "aws_cognito_user_pool_client" "usersPool" {
   name = "usersPoolClient"
 
-  user_pool_id = aws_cognito_user_pool.usersPool.id
+  user_pool_id    = aws_cognito_user_pool.usersPool.id
   generate_secret = false
 }
 
@@ -225,7 +225,8 @@ resource "aws_api_gateway_method" "creators_proxy" {
   rest_api_id   = aws_api_gateway_rest_api.valvid.id
   resource_id   = aws_api_gateway_resource.creators_proxy.id
   http_method   = "ANY"
-  authorization = "NONE" # this will need an authorizer!
+  authorization = "CUSTOM"
+  authorizer_id = aws_api_gateway_authorizer.users_authorizer.id
 }
 
 resource "aws_api_gateway_integration" "creators_lambda" {
@@ -257,21 +258,78 @@ resource "aws_lambda_function" "creators" {
 
   handler = "creators.handler"
   runtime = "nodejs12.x"
-  timeout = 15
-  role = aws_iam_role.lambda_exec.arn
+  timeout = 5
+  role    = aws_iam_role.lambda_exec.arn
   depends_on = [
     aws_iam_role_policy_attachment.lambda_logs,
     aws_dynamodb_table.usersTable
   ]
 }
 
-# Api gateway config for new lambda
 
-# new lambda Authoriser
+resource "aws_lambda_function" "authorizer" {
+  function_name = "api_gateway_authorizer"
 
-# new lambda (API)
+  s3_bucket = "valvid-terraform"
+  s3_key    = "v${var.app_version}/valvid.zip"
 
-# policy for lambda, can use the other logging policy
+  handler = "authorizer.handler"
+  runtime = "nodejs12.x"
+  timeout = 5
+  role    = aws_iam_role.lambda_exec.arn
+  depends_on = [
+    aws_iam_role_policy_attachment.lambda_logs,
+    aws_dynamodb_table.usersTable
+  ]
+}
+
+resource "aws_api_gateway_authorizer" "users_authorizer" {
+  name                   = "users_authorizer"
+  rest_api_id            = aws_api_gateway_rest_api.valvid.id
+  authorizer_uri         = aws_lambda_function.authorizer.invoke_arn
+  authorizer_credentials = aws_iam_role.invocation_role.arn
+  type                   = "TOKEN"
+}
+
+resource "aws_iam_role" "invocation_role" {
+  name = "api_gateway_auth_invocation"
+  path = "/"
+
+  assume_role_policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Action": "sts:AssumeRole",
+      "Principal": {
+        "Service": "apigateway.amazonaws.com"
+      },
+      "Effect": "Allow",
+      "Sid": ""
+    }
+  ]
+}
+EOF
+}
+
+resource "aws_iam_role_policy" "invocation_policy" {
+  name = "default"
+  role = aws_iam_role.invocation_role.id
+
+  policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Action": "lambda:InvokeFunction",
+      "Effect": "Allow",
+      "Resource": "${aws_lambda_function.authorizer.arn}"
+    }
+  ]
+}
+EOF
+}
+
 
 # new dynamo tables
 
