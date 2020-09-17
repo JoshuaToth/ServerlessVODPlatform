@@ -235,6 +235,14 @@ resource "aws_api_gateway_method" "creators_proxy" {
   authorizer_id = aws_api_gateway_authorizer.users_authorizer.id
 }
 
+module "cors" {
+  source = "squidfunk/api-gateway-enable-cors/aws"
+  version = "0.3.1"
+
+  api_id          = aws_api_gateway_rest_api.valvid.id
+  api_resource_id = aws_api_gateway_resource.creators_proxy.id
+}
+
 resource "aws_api_gateway_integration" "creators_lambda" {
   rest_api_id = aws_api_gateway_rest_api.valvid.id
   resource_id = aws_api_gateway_method.creators_proxy.resource_id

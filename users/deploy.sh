@@ -1,4 +1,5 @@
 rm -rf dist
+rm -rf tsc
 mkdir dist
 npm run compile
 cp -r node_modules/ dist/node_modules/

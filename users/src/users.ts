@@ -124,6 +124,7 @@ app.post('/users/login', async (req, res) => {
           res.json({
             path: 'login',
             session: generateLoginToken(UserID, username),
+            username: username
           })
         }
       })

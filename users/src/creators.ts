@@ -188,27 +188,3 @@ const server = awsServerlessExpress.createServer(app)
 export const handler = (event: any, context: any) => {
   awsServerlessExpress.proxy(server, event, context)
 }
-
-
-
-const Catdog = () => {
-
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-const CatDog = () => {
-  const cat = 'cat';
-  return cat === 'dog';
-}
