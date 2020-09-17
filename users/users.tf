@@ -236,11 +236,12 @@ resource "aws_api_gateway_method" "creators_proxy" {
 }
 
 module "cors" {
-  source = "squidfunk/api-gateway-enable-cors/aws"
+  source  = "squidfunk/api-gateway-enable-cors/aws"
   version = "0.3.1"
 
   api_id          = aws_api_gateway_rest_api.valvid.id
   api_resource_id = aws_api_gateway_resource.creators_proxy.id
+  # allow_max_age   = 0
 }
 
 resource "aws_api_gateway_integration" "creators_lambda" {

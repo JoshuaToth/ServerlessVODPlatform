@@ -89,7 +89,7 @@ app.put('/creators/video', async (req, res) => {
     },
     // TODO be smarter about this expression, only update fields that get sent through. Rather than always update them
     UpdateExpression:
-      'set title=:t, Details.description=:d, Details.tags=:ta, Details.title=:t',
+      'set Title=:t, Details.description=:d, Details.tags=:ta, Details.title=:t',
     ExpressionAttributeValues: {
       ':t': title,
       ':d': content.description,

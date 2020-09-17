@@ -1,0 +1,17 @@
+.video {
+  margin: 10px 0;
+  border: 1px solid lightgray;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 10px;
+}
+.label {
+  display: flex;
+  flex-direction: row;
+  font-size: 16px;
+  line-height: 16px;
+}
+.label p {
+  margin-right: 15px;
+}
