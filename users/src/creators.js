@@ -19,7 +19,6 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(awsServerlessExpressMiddleware.eventContext());
 
 const getVideo = async (videoId, userId) => {
-  //dynamodb video stuffs
   return await new Promise((yeah, nah) => {
     const params = {
       TableName: "Videos",
@@ -27,14 +26,6 @@ const getVideo = async (videoId, userId) => {
         VideoId: videoId,
         UserId: userId,
       },
-      // Key: {
-      //   VideoId: {
-      //     S: videoId,
-      //   },
-      //   UserId: {
-      //     S: userId,
-      //   },
-      // },
     };
     dynamodb.get(params, function (err, data) {
       if (err) {
@@ -51,8 +42,6 @@ const getVideo = async (videoId, userId) => {
     });
   });
 };
-
-// Can move this out into a router or something or their own functions. It's gonna be a long file
 
 app.get("/creators/healthcheck", (req, res) => {
   const user = context.getUserContext(req);
@@ -116,7 +105,6 @@ app.delete("/creators/video/:videoId", async (req, res) => {
 });
 
 app.get("/creators/video/:videoId", async (req, res) => {
-  // return video data if creator is user
   const { userId } = context.getUserContext(req);
   const { videoId } = req.params;
   const video = await getVideo(videoId, userId);
