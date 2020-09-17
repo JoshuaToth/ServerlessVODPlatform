@@ -1,7 +1,8 @@
 rm -rf dist
 mkdir dist
+npm run compile
 cp -r node_modules/ dist/node_modules/
-cp -r src/ dist/
+cp -r tsc/ dist/
 cp package.json dist/
 cd dist
 zip -r -q valvid.zip *
