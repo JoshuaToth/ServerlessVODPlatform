@@ -371,7 +371,7 @@ resource "aws_dynamodb_table" "videosTable" {
   }
 
   attribute {
-    name = "Status"
+    name = "VideoStatus"
     type = "S"
   }
 
@@ -386,7 +386,7 @@ resource "aws_dynamodb_table" "videosTable" {
 
   global_secondary_index {
     name            = "VideosStatusIndex"
-    hash_key        = "Status"
+    hash_key        = "VideoStatus"
     range_key       = "VideoId"
     write_capacity  = 1
     read_capacity   = 1
@@ -622,7 +622,7 @@ resource "aws_cloudfront_origin_access_identity" "origin_access_identity" {
 
 resource "aws_s3_bucket_policy" "processed_videos" {
   bucket = aws_s3_bucket.processed_videos.id
-  
+
   policy = <<POLICY
 {
   "Version": "2012-10-17",
@@ -757,6 +757,13 @@ resource "aws_lambda_function" "viewers" {
     aws_dynamodb_table.usersTable,
     aws_dynamodb_table.videosTable
   ]
+
+  environment {
+    variables = {
+      CLOUDFRONT_URL = aws_cloudfront_distribution.s3_distribution.domain_name
+    }
+  }
+  # 
 }
 
 #####

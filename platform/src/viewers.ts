@@ -10,7 +10,7 @@ import * as AWS from 'aws-sdk'
 
 import { getUserContext } from './utils/context'
 const dynamodb = new AWS.DynamoDB.DocumentClient()
-
+const { CLOUDFRONT_URL } = process.env
 const app = express()
 app.use(cors())
 app.use(bodyParser.json())
@@ -52,30 +52,34 @@ app.get('/viewers/healthcheck', (req: any, res) => {
   })
 })
 
-
 app.get('/viewers/video/:videoId', async (req, res) => {
-  const { userId } = getUserContext(req)
   const { videoId } = req.params
-  const video: any = await getVideo(videoId, userId)
-  if (video.Status !== 'PUBLISHED')
-  res.json({ path: 'video get', video })
+  // const video: any = await getVideo(videoId)
+  // if (video.VideoStatus !== 'PUBLISHED')
+  // res.json({ path: 'video get', video })
 })
 
 app.get('/viewers/videos', async (req, res) => {
   const params = {
     TableName: 'Videos',
-    IndexName: 'VideosPubloishedIndex',
-    KeyConditionExpression: '#Status = :Status',
+    IndexName: 'VideosStatusIndex',
+    KeyConditionExpression: '#VideoStatus = :VideoStatus',
     ExpressionAttributeNames: {
-      '#Status': 'Status',
+      '#VideoStatus': 'VideoStatus',
     },
     ExpressionAttributeValues: {
-      ':Status': 'PUBLISHED',
+      ':VideoStatus': 'PUBLISHED',
     },
   }
   dynamodb.query(params, (err, data) => {
     if (err) res.json(err)
-    else res.json({ path: 'video get all uploaded by this user', items: data.Items })
+    else {
+      const videos = data.Items.map((item) => ({
+        videoTitle: item.Title,
+        videoUrl: `https://${CLOUDFRONT_URL}/${item.VideoFilename}`,
+      }))
+      res.json({ path: 'video get all uploaded by this user', videos })
+    }
   })
 })
 

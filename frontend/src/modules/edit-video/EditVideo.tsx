@@ -17,7 +17,7 @@ export const EditVideo: React.FC<{
   const [uploading, setUploading] = useState(false)
   const [fileUploaded, setFileUploaded] = useState(false)
   const [progress, setProgress] = useState(0)
-  const [status, setStatus] = useState('Loading...')
+  const [videoStatus, setVideoStatus] = useState('Loading...')
   const [uploadStatus, setUploadedStatus] = useState('N/A')
 
   const UploadVideo = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -117,7 +117,7 @@ export const EditVideo: React.FC<{
       )
       .then(function (response) {
         setSaving(false)
-        setStatus('PUBLISHED')
+        setVideoStatus('PUBLISHED')
         setMessage('Video PUBLISHED!!!')
       })
       .catch(function (error) {
@@ -139,7 +139,7 @@ export const EditVideo: React.FC<{
         setTitle(video.Title)
         setDescription(video.Details.description)
         setLoading(false)
-        setStatus(video.Status)
+        setVideoStatus(video.VideoStatus)
         setUploadedStatus(video.UploadStatus)
         setFileUploaded(video.UploadStatus !== 'N/A')
       })
@@ -155,8 +155,8 @@ export const EditVideo: React.FC<{
       <button onClick={(e) => setVideoID()}>return</button>
       <p>{message}</p>
       <form onSubmit={SaveVideo} className={styles.videoForm}>
-        <p>Status: {status}</p>
-        {uploadStatus === 'PROCESSED' && status !== 'PUBLISHED' ? (
+        <p>Status: {videoStatus}</p>
+        {uploadStatus === 'PROCESSED' && videoStatus !== 'PUBLISHED' ? (
           <button onClick={PublishVideo} disabled={saving}>
             PUBLISH?!
           </button>

@@ -3,6 +3,7 @@ import './App.css'
 import { Login } from './modules/login/Login'
 import { MyVideos } from './modules/my-videos/MyVideos'
 import { EditVideo } from './modules/edit-video/EditVideo'
+import { ViewVideos } from './modules/view-videos/ViewVideos'
 
 const App = () => {
   const [userDetails, setUserDetails] = useState<
@@ -47,7 +48,8 @@ const App = () => {
           </div>
         ) : (
           <div>
-          <h1>'Valvid, best gaming videos on the web!'</h1>
+            <h1>'Valvid, best gaming videos on the web!'</h1>
+            <ViewVideos />
           </div>
         )}
       </header>

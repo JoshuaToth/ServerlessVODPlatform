@@ -5,6 +5,7 @@
   flex-direction: column;
   align-items: flex-start;
   padding: 10px;
+  max-width: 350px;
 }
 .label {
   display: flex;
@@ -14,4 +15,9 @@
 }
 .label p {
   margin-right: 15px;
+}
+.videosWrapper {
+  display: flex;
+  flex-flow: row;
+  justify-content: space-between;
 }

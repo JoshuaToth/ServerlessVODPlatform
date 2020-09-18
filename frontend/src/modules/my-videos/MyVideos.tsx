@@ -53,7 +53,7 @@ export const MyVideos: React.FC<{
 
           <div className={styles.label}>
             <p>Status:</p>
-            <p>{video.Status}</p>
+            <p>{video.VideoStatus}</p>
           </div>
           <button onClick={(e) => setVideoID(video.VideoId)}>edit</button>
         </div>

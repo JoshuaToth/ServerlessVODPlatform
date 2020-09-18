@@ -61,7 +61,7 @@ app.post('/creators/video', async (req, res) => {
       VideoId: videoID,
       Metadata: {},
       Title: 'New video',
-      Status: 'DRAFT',
+      VideoStatus: 'DRAFT',
       UploadStatus: 'N/A',
       CreatedDate: Date.now().toString(),
       Details: {},
@@ -114,7 +114,7 @@ app.post('/creators/video', async (req, res) => {
       VideoId: videoID,
       Metadata: {},
       Title: 'New video',
-      Status: 'DRAFT',
+      VideoStatus: 'DRAFT',
       UploadStatus: 'N/A',
       CreatedDate: Date.now().toString(),
       Details: {},
@@ -141,7 +141,7 @@ app.post('/creators/video/publish', async (req, res) => {
       UserId: userId,
     },
     UpdateExpression:
-      'set Status=:p',
+      'set VideoStatus=:p',
     ExpressionAttributeValues: {
       ':p': 'PUBLISHED',
     },
