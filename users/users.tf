@@ -14,7 +14,6 @@ variable "app_version" {
 #####
 # SIGNUP SERVICE
 #####
-# CORS WILL BE AN ISSUE I THINK
 resource "aws_api_gateway_rest_api" "valvid" {
   name        = "ValvidAPI"
   description = "API gateway for all interactions"

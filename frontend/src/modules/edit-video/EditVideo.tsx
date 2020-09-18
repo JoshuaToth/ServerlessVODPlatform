@@ -14,11 +14,14 @@ export const EditVideo: React.FC<{
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(true)
+  const [uploading, setUploading] = useState(false)
+  const [fileUploaded, setFileUploaded] = useState(false)
+  const [progress, setProgress] = useState(0)
 
   const UploadVideo = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files ? e.target.files[0] : undefined
-    if (!file) return
-    console.log(file)
+    if (!file || uploading) return
+    setUploading(true)
     const uploadResult = await axios
       .post(
         CREATORS_URL + '/video/upload',
@@ -37,8 +40,9 @@ export const EditVideo: React.FC<{
       })
       .catch(function (error) {
         console.log(error)
+        setUploading(false)
+        setMessage('Failed to get upload location')
       })
-    console.log('uploading file', uploadResult)
 
     new Promise((resolve, reject) => {
       const formData = new FormData()
@@ -46,11 +50,10 @@ export const EditVideo: React.FC<{
         formData.append(key, uploadResult.fields[key])
       })
 
-      // Actual file has to be appended last.
       formData.append('file', file)
-      console.log('uploading file')
       const xhr = new XMLHttpRequest()
       xhr.open('POST', uploadResult.url, true)
+      xhr.upload.onprogress = (e) => setProgress(Math.round((e.loaded / e.total) * 100))
       xhr.send(formData)
       xhr.onload = function () {
         this.status === 204 ? resolve() : reject('BOOM')
@@ -58,27 +61,14 @@ export const EditVideo: React.FC<{
     })
       .then(() => {
         console.log('Uploaded!')
+        setUploading(false)
+        setFileUploaded(true)
       })
       .catch((e) => {
         console.log('upload failed', e)
+        setUploading(false)
+        setMessage('File upload failed')
       })
-    // axios
-    //   .post(
-    //     url,
-    //     {
-    //       videoId,
-    //       ...uploadResult.fields,
-    //       file
-    //     }
-    //   )
-    //   .then(function (response) {
-    //     console.log('file uploaded')
-    //     return response.data
-    //   })
-    //   .catch(function (error) {
-    //     console.log('upload failed', error)
-    //     console.log(error)
-    //   })
   }
 
   const SaveVideo = (event: React.FormEvent<HTMLFormElement>) => {
@@ -149,7 +139,13 @@ export const EditVideo: React.FC<{
           placeholder="Description"
         />
         <p>Upload video</p>
-        <input type="file" name="file" onChange={(e) => UploadVideo(e)} />
+        {uploading ? (
+          <p>Uploading file... {progress}%</p>
+        ) : fileUploaded ? (
+          <p>File uploaded!</p>
+        ) : (
+          <input type="file" name="file" onChange={(e) => UploadVideo(e)} />
+        )}
         <button type="submit" disabled={saving}>
           Save changes
         </button>
