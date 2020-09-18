@@ -118,7 +118,8 @@ app.get('/creators/video/:videoId', async (req, res) => {
 
 app.post('/creators/video/upload', async (req, res) => {
   const { userId } = getUserContext(req)
-  const { videoId } = req.body
+  const { videoId, videoName } = req.body
+  const mime = require('mime')
   const video = await getVideo(videoId, userId)
   const rawVideoID = v4()
 
@@ -146,12 +147,15 @@ app.post('/creators/video/upload', async (req, res) => {
 
   const paramsSigned = {
     Bucket: myBucket,
+    Expires: 600,
     Fields: {
       key: rawVideoID,
+      'Content-Type': mime.getType(videoName),
     },
+    // Nice, I didn't know you could limit this way!
+    Conditions: [["content-length-range", 100, 1000000000]], // ~1gb
   }
 
-  // TODO get content length of intended video and limit if needed
   console.log('created presigned URL')
   s3.createPresignedPost(paramsSigned, function (err, data) {
     if (err) {

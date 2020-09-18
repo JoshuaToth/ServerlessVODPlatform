@@ -15,6 +15,72 @@ export const EditVideo: React.FC<{
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(true)
 
+  const UploadVideo = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files ? e.target.files[0] : undefined
+    if (!file) return
+    console.log(file)
+    const uploadResult = await axios
+      .post(
+        CREATORS_URL + '/video/upload',
+        {
+          videoId,
+          type: file.type,
+          size: file.size,
+          videoName: file.name,
+        },
+        {
+          headers: { Authorization: sessionToken },
+        }
+      )
+      .then(function (response) {
+        return response.data.postData
+      })
+      .catch(function (error) {
+        console.log(error)
+      })
+    console.log('uploading file', uploadResult)
+
+    new Promise((resolve, reject) => {
+      const formData = new FormData()
+      Object.keys(uploadResult.fields).forEach((key) => {
+        formData.append(key, uploadResult.fields[key])
+      })
+
+      // Actual file has to be appended last.
+      formData.append('file', file)
+      console.log('uploading file')
+      const xhr = new XMLHttpRequest()
+      xhr.open('POST', uploadResult.url, true)
+      xhr.send(formData)
+      xhr.onload = function () {
+        this.status === 204 ? resolve() : reject('BOOM')
+      }
+    })
+      .then(() => {
+        console.log('Uploaded!')
+      })
+      .catch((e) => {
+        console.log('upload failed', e)
+      })
+    // axios
+    //   .post(
+    //     url,
+    //     {
+    //       videoId,
+    //       ...uploadResult.fields,
+    //       file
+    //     }
+    //   )
+    //   .then(function (response) {
+    //     console.log('file uploaded')
+    //     return response.data
+    //   })
+    //   .catch(function (error) {
+    //     console.log('upload failed', error)
+    //     console.log(error)
+    //   })
+  }
+
   const SaveVideo = (event: React.FormEvent<HTMLFormElement>) => {
     if (saving) return
     event.preventDefault()
@@ -83,7 +149,7 @@ export const EditVideo: React.FC<{
           placeholder="Description"
         />
         <p>Upload video</p>
-        <input type="file" name="file" />
+        <input type="file" name="file" onChange={(e) => UploadVideo(e)} />
         <button type="submit" disabled={saving}>
           Save changes
         </button>

@@ -3,4 +3,6 @@
   flex-direction: column;
   justify-content: space-between;
   height: 300px;
+  max-width: 400px;
+  margin: 0 auto;
 }

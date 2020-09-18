@@ -160,6 +160,11 @@ resource "aws_iam_policy" "lambda_dynamodb" {
         "arn:aws:dynamodb:*:*:table/Videos/index/*"
       ],
       "Effect": "Allow"
+    },
+    {
+      "Effect": "Allow",
+      "Action": "s3:PutObject",
+      "Resource": "arn:aws:s3:::valvid-raw-videos/*"
     }
   ]
 }
@@ -241,7 +246,6 @@ module "cors" {
 
   api_id          = aws_api_gateway_rest_api.valvid.id
   api_resource_id = aws_api_gateway_resource.creators_proxy.id
-  # allow_max_age   = 0
 }
 
 resource "aws_api_gateway_integration" "creators_lambda" {
@@ -394,6 +398,13 @@ resource "aws_s3_bucket" "raw_videos" {
   tags = {
     Name        = "Raw videos"
     Environment = "Dev"
+  }
+  cors_rule {
+    allowed_headers = ["*"]
+    allowed_methods = ["PUT", "POST"]
+    allowed_origins = ["*"]
+    # expose_headers  = ["Authorization"]
+    max_age_seconds = 3000
   }
 }
 
