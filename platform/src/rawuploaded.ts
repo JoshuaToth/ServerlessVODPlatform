@@ -181,7 +181,7 @@ export const handler = async (event: any, _: any, callback: any) => {
       ],
       TimecodeConfig: {
         Source: 'EMBEDDED',
-      },
+      }
     },
   }
   console.log('making media convert', jobParams)

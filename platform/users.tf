@@ -163,7 +163,10 @@ resource "aws_iam_policy" "lambda_dynamodb" {
     {
       "Effect": "Allow",
       "Action": "s3:PutObject",
-      "Resource": "arn:aws:s3:::valvid-raw-videos/*"
+      "Resource": [
+        "arn:aws:s3:::valvid-raw-videos/*",
+        "arn:aws:s3:::valvid-processed-videos/*"
+      ]
     }
   ]
 }
@@ -450,10 +453,10 @@ resource "aws_lambda_function" "raw_uploaded" {
 
   environment {
     variables = {
-      JOB_QUEUE_ARN        = aws_media_convert_queue.aws_media_convert_queue.arn,
+      JOB_QUEUE_ARN           = aws_media_convert_queue.aws_media_convert_queue.arn,
       PROCESSED_VIDEOS_BUCKET = aws_s3_bucket.processed_videos.id,
-      RAW_VIDEOS_BUCKET = aws_s3_bucket.raw_videos.id,
-      JOB_IAM_ROLE_ARN = aws_iam_role.mediaconvert_role.arn
+      RAW_VIDEOS_BUCKET       = aws_s3_bucket.raw_videos.id,
+      JOB_IAM_ROLE_ARN        = aws_iam_role.mediaconvert_role.arn
     }
   }
   depends_on = [
@@ -539,15 +542,6 @@ resource "aws_iam_policy" "mediaconvert_policy" {
 EOF
 }
 
-
-      # "Condition": {
-      #     "StringLike": {
-      #         "iam:PassedToService": [
-      #             "mediaconvert.amazonaws.com"
-      #         ]
-      #     }
-      # }
-
 resource "aws_iam_role_policy_attachment" "mediaconvert_policy" {
   role       = aws_iam_role.mediaconvert_role.name
   policy_arn = aws_iam_policy.mediaconvert_policy.arn
@@ -558,13 +552,189 @@ resource "aws_iam_role_policy_attachment" "lamba_media_policy" {
   policy_arn = aws_iam_policy.mediaconvert_policy.arn
 }
 
+
+resource "aws_lambda_permission" "allow_bucket_processed" {
+  statement_id  = "AllowExecutionFromS3Bucket"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.processing_finished.arn
+  principal     = "s3.amazonaws.com"
+  source_arn    = aws_s3_bucket.processed_videos.arn
+}
+
+resource "aws_s3_bucket_notification" "processed_bucket_notification" {
+  bucket = aws_s3_bucket.processed_videos.id
+
+  lambda_function {
+    lambda_function_arn = aws_lambda_function.processing_finished.arn
+    events              = ["s3:ObjectCreated:*"]
+  }
+
+  depends_on = [aws_lambda_permission.allow_bucket_processed]
+}
+
+
+resource "aws_lambda_function" "processing_finished" {
+  function_name = "VideoProcessed"
+
+  s3_bucket = "valvid-terraform"
+  s3_key    = "v${var.app_version}/valvid.zip"
+
+  handler = "videoprocessed.handler"
+  runtime = "nodejs12.x"
+  timeout = 100
+  role    = aws_iam_role.lambda_exec.arn
+
+  depends_on = [
+    aws_iam_role_policy_attachment.lambda_logs,
+    aws_dynamodb_table.usersTable,
+    aws_dynamodb_table.videosTable
+  ]
+}
+
 #####
 # End video processing service
 #####
 
+#####
+# Cloudfront config for viewing the videos
+#####
 
+locals {
+  s3_origin_id = "processedVideosOrigin"
+}
+resource "aws_cloudfront_origin_access_identity" "origin_access_identity" {
+  comment = "VideoOrigin"
+}
+
+resource "aws_s3_bucket_policy" "processed_videos" {
+  bucket = aws_s3_bucket.processed_videos.id
+  
+  policy = <<POLICY
+{
+  "Version": "2012-10-17",
+  "Id": "PolicyForCloudFrontPrivateContent",
+  "Statement": [
+      {
+          "Effect": "Allow",
+          "Principal": {
+              "AWS": "${aws_cloudfront_origin_access_identity.origin_access_identity.iam_arn}"
+          },
+          "Action": "s3:GetObject",
+          "Resource": "arn:aws:s3:::valvid-processed-videos/*"
+      }
+  ]
+}
+POLICY
+}
+
+resource "aws_cloudfront_distribution" "s3_distribution" {
+  origin {
+    domain_name = aws_s3_bucket.processed_videos.bucket_regional_domain_name
+    origin_id   = local.s3_origin_id
+
+    s3_origin_config {
+      origin_access_identity = "origin-access-identity/cloudfront/${aws_cloudfront_origin_access_identity.origin_access_identity.id}"
+    }
+  }
+
+  enabled             = true
+  is_ipv6_enabled     = true
+  comment             = "Anything"
+  default_root_object = "index.html"
+
+  # logging_config {
+  #   include_cookies = false
+  #   bucket          = "mylogs.s3.amazonaws.com"
+  #   prefix          = "myprefix"
+  # }
+
+  # aliases = ["mysite.example.com", "yoursite.example.com"]
+
+  default_cache_behavior {
+    allowed_methods  = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
+    cached_methods   = ["GET", "HEAD"]
+    target_origin_id = local.s3_origin_id
+
+    forwarded_values {
+      query_string = false
+
+      cookies {
+        forward = "none"
+      }
+    }
+
+    viewer_protocol_policy = "allow-all"
+    min_ttl                = 0
+    default_ttl            = 3600
+    max_ttl                = 86400
+  }
+
+  # Cache behavior with precedence 0
+  # ordered_cache_behavior {
+  #   path_pattern     = "/content/immutable/*"
+  #   allowed_methods  = ["GET", "HEAD", "OPTIONS"]
+  #   cached_methods   = ["GET", "HEAD", "OPTIONS"]
+  #   target_origin_id = local.s3_origin_id
+
+  #   forwarded_values {
+  #     query_string = false
+  #     headers      = ["Origin"]
+
+  #     cookies {
+  #       forward = "none"
+  #     }
+  #   }
+
+  #   min_ttl                = 0
+  #   default_ttl            = 86400
+  #   max_ttl                = 31536000
+  #   compress               = true
+  #   viewer_protocol_policy = "redirect-to-https"
+  # }
+
+  # # Cache behavior with precedence 1
+  # ordered_cache_behavior {
+  #   path_pattern     = "/content/*"
+  #   allowed_methods  = ["GET", "HEAD", "OPTIONS"]
+  #   cached_methods   = ["GET", "HEAD"]
+  #   target_origin_id = local.s3_origin_id
+
+  #   forwarded_values {
+  #     query_string = false
+
+  #     cookies {
+  #       forward = "none"
+  #     }
+  #   }
+
+  #   min_ttl                = 0
+  #   default_ttl            = 3600
+  #   max_ttl                = 86400
+  #   compress               = true
+  #   viewer_protocol_policy = "redirect-to-https"
+  # }
+
+  # price_class = "PriceClass_200"
+
+  restrictions {
+    geo_restriction {
+      restriction_type = "none"
+    }
+  }
+
+  tags = {
+    Environment = "dev"
+  }
+
+  viewer_certificate {
+    cloudfront_default_certificate = true
+  }
+}
 
 # Outputs
 output "base_url" {
   value = aws_api_gateway_deployment.valvid.invoke_url
+}
+output "cloudfront_domain_name" {
+  value = aws_cloudfront_distribution.s3_distribution.domain_name
 }

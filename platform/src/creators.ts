@@ -132,6 +132,7 @@ app.post('/creators/video/upload', async (req, res) => {
       VideoId: videoId,
       CreatedDate: Date.now(),
       Status: 'PENDING',
+      UserId: userId,
     },
     TableName: 'RawVideos',
   }
