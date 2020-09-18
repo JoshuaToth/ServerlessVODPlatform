@@ -81,7 +81,7 @@ app.put('/creators/video', async (req, res) => {
   const { videoId, content, title } = req.body
   const video = await getVideo(videoId, userId)
 
-  var params = {
+  const params = {
     TableName: 'Videos',
     Key: {
       VideoId: videoId,

@@ -412,6 +412,158 @@ resource "aws_s3_bucket" "raw_videos" {
 # END SIGNUP SERVICE
 #####
 
+#####
+# Start video processing service
+#####
+
+resource "aws_lambda_permission" "allow_bucket_raw" {
+  statement_id  = "AllowExecutionFromS3Bucket"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.raw_uploaded.arn
+  principal     = "s3.amazonaws.com"
+  source_arn    = aws_s3_bucket.raw_videos.arn
+}
+
+resource "aws_s3_bucket_notification" "raw_bucket_notification" {
+  bucket = aws_s3_bucket.raw_videos.id
+
+  lambda_function {
+    lambda_function_arn = aws_lambda_function.raw_uploaded.arn
+    events              = ["s3:ObjectCreated:*"]
+    # filter_prefix       = "AWSLogs/"
+    # filter_suffix       = ".log"
+  }
+
+  depends_on = [aws_lambda_permission.allow_bucket_raw]
+}
+
+resource "aws_lambda_function" "raw_uploaded" {
+  function_name = "RawVideoUploaded"
+
+  s3_bucket = "valvid-terraform"
+  s3_key    = "v${var.app_version}/valvid.zip"
+
+  handler = "rawuploaded.handler"
+  runtime = "nodejs12.x"
+  timeout = 100
+  role    = aws_iam_role.lambda_exec.arn
+
+  environment {
+    variables = {
+      JOB_QUEUE_ARN        = aws_media_convert_queue.aws_media_convert_queue.arn,
+      PROCESSED_VIDEOS_BUCKET = aws_s3_bucket.processed_videos.id,
+      RAW_VIDEOS_BUCKET = aws_s3_bucket.raw_videos.id,
+      JOB_IAM_ROLE_ARN = aws_iam_role.mediaconvert_role.arn
+    }
+  }
+  depends_on = [
+    aws_iam_role_policy_attachment.lambda_logs,
+    aws_dynamodb_table.usersTable,
+    aws_dynamodb_table.videosTable
+  ]
+}
+
+resource "aws_media_convert_queue" "aws_media_convert_queue" {
+  name = "raw-video-queue"
+}
+
+
+resource "aws_s3_bucket" "processed_videos" {
+  bucket = "valvid-processed-videos"
+  acl    = "private"
+
+  tags = {
+    Name        = "Processed videos"
+    Environment = "Dev"
+  }
+  cors_rule {
+    allowed_headers = ["*"]
+    allowed_methods = ["GET"]
+    allowed_origins = ["*"]
+    # expose_headers  = ["Authorization"]
+    max_age_seconds = 3000
+  }
+}
+
+
+resource "aws_iam_role" "mediaconvert_role" {
+  name = "MediaConvert_Default_Role"
+
+  assume_role_policy = <<EOF
+{
+"Version": "2012-10-17",
+"Statement": [
+  {
+  "Action": "sts:AssumeRole",
+  "Principal": {
+    "Service": "mediaconvert.amazonaws.com"
+  },
+  "Effect": "Allow",
+  "Sid": ""
+  }
+]
+}
+EOF
+
+}
+
+resource "aws_iam_policy" "mediaconvert_policy" {
+  name        = "mediaconvert_policy"
+  path        = "/"
+  description = "Allow the mediaconvert job to run"
+
+  policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": "s3:*",
+      "Resource": [
+        "arn:aws:s3:::valvid-raw-videos/*",
+        "arn:aws:s3:::valvid-processed-videos/*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": "mediaconvert:*",
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": "iam:PassRole",
+      "Resource": "*"
+    }
+  ]
+}
+EOF
+}
+
+
+      # "Condition": {
+      #     "StringLike": {
+      #         "iam:PassedToService": [
+      #             "mediaconvert.amazonaws.com"
+      #         ]
+      #     }
+      # }
+
+resource "aws_iam_role_policy_attachment" "mediaconvert_policy" {
+  role       = aws_iam_role.mediaconvert_role.name
+  policy_arn = aws_iam_policy.mediaconvert_policy.arn
+}
+
+resource "aws_iam_role_policy_attachment" "lamba_media_policy" {
+  role       = aws_iam_role.lambda_exec.name
+  policy_arn = aws_iam_policy.mediaconvert_policy.arn
+}
+
+#####
+# End video processing service
+#####
+
+
+
 # Outputs
 output "base_url" {
   value = aws_api_gateway_deployment.valvid.invoke_url
