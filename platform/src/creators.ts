@@ -133,7 +133,7 @@ app.post('/creators/video/publish', async (req, res) => {
   const { userId } = getUserContext(req)
   const { videoId } = req.body
   const video: any = await getVideo(videoId, userId)
-  if (video.UploadStatus !== 'UPLOADED') res.json({message: 'Cannot publish a video record with no video!'})
+  if (video.UploadStatus !== 'PROCESSED') res.json({message: 'Cannot publish a video record with no video!'})
   const params = {
     TableName: 'Videos',
     Key: {

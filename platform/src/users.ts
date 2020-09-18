@@ -92,17 +92,17 @@ app.post('/users/signup', async (req, res) => {
 })
 
 app.post('/users/login', async (req, res) => {
-  var authenticationDetails = new AmazonCognitoIdentity.AuthenticationDetails({
+  const authenticationDetails = new AmazonCognitoIdentity.AuthenticationDetails({
     Username: req.body.email,
     Password: req.body.password,
   })
 
-  var userData = {
+  const userData = {
     Username: req.body.email,
     Pool: userPool,
   }
 
-  var cognitoUser = new AmazonCognitoIdentity.CognitoUser(userData)
+  const cognitoUser = new AmazonCognitoIdentity.CognitoUser(userData)
 
   cognitoUser.authenticateUser(authenticationDetails, {
     onSuccess: function (result) {

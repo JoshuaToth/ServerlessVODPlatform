@@ -103,6 +103,30 @@ export const EditVideo: React.FC<{
       })
   }
 
+  const PublishVideo = () => {
+    if (saving) return
+    setSaving(true)
+    setMessage('Saving')
+    axios
+      .post(
+        CREATORS_URL + '/video/publish',
+        {
+          videoId: videoId,
+        },
+        { headers: { Authorization: sessionToken } }
+      )
+      .then(function (response) {
+        setSaving(false)
+        setStatus('PUBLISHED')
+        setMessage('Video PUBLISHED!!!')
+      })
+      .catch(function (error) {
+        setSaving(false)
+        setMessage('ERROR SAVING')
+        console.log(error)
+      })
+  }
+
   useEffect(() => {
     if (!videoId) return
     setLoading(true)
@@ -132,6 +156,11 @@ export const EditVideo: React.FC<{
       <p>{message}</p>
       <form onSubmit={SaveVideo} className={styles.videoForm}>
         <p>Status: {status}</p>
+        {uploadStatus === 'PROCESSED' && status !== 'PUBLISHED' ? (
+          <button onClick={PublishVideo} disabled={saving}>
+            PUBLISH?!
+          </button>
+        ) : null}
         <input
           type="text"
           value={title}
