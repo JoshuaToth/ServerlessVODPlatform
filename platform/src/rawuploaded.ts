@@ -17,7 +17,7 @@ export const handler = async (event: any, _: any, callback: any) => {
     console.error('no key found for', record)
     return
   }
-  const rawRecord = await new Promise((yeah, nah) => {
+  const rawRecord: any = await new Promise((yeah, nah) => {
     const params = {
       TableName: 'RawVideos',
       Key: {
@@ -34,6 +34,28 @@ export const handler = async (event: any, _: any, callback: any) => {
       }
     })
   })
+  // TODO: make this single action its own lambda
+  const videoRecord = await new Promise((yeah, nah) => {
+    const params = {
+      TableName: 'Videos',
+      Key: {
+        VideoId: rawRecord.VideoId,
+        UserId: rawRecord.UserId,
+      },
+      UpdateExpression: 'set UploadStatus=:s',
+      ExpressionAttributeValues: {
+        ':s': 'UPLOADED',
+      },
+    }
+
+    dynamodb.update(params, function (err) {
+      if (err) {
+        console.log('Broke updating video', err, err.stack)
+        nah(err)
+      } else yeah()
+    })
+  })
+
   const paramsRaw = {
     TableName: 'RawVideos',
     Key: {
@@ -181,7 +203,7 @@ export const handler = async (event: any, _: any, callback: any) => {
       ],
       TimecodeConfig: {
         Source: 'EMBEDDED',
-      }
+      },
     },
   }
   console.log('making media convert', jobParams)
@@ -190,7 +212,7 @@ export const handler = async (event: any, _: any, callback: any) => {
       .describeEndpoints()
       .promise()
     const endpoint: string = await endpointsPromise
-      .then((endpoints) => endpoints.Endpoints ? endpoints.Endpoints[0].Url : 'foo')
+      .then((endpoints) => (endpoints.Endpoints ? endpoints.Endpoints[0].Url : 'foo'))
       .catch((e) => {
         console.log('failed to get endpoints', e)
         throw new Error('boom')

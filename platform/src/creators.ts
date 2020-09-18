@@ -105,6 +105,56 @@ app.put('/creators/video', async (req, res) => {
   })
 })
 
+app.post('/creators/video', async (req, res) => {
+  const user = getUserContext(req)
+  const videoID = v4()
+  const params = {
+    Item: {
+      UserId: user.userId,
+      VideoId: videoID,
+      Metadata: {},
+      Title: 'New video',
+      Status: 'DRAFT',
+      UploadStatus: 'N/A',
+      CreatedDate: Date.now().toString(),
+      Details: {},
+    },
+    TableName: 'Videos',
+  }
+  dynamodb.put(params, function (err) {
+    if (err) {
+      console.log(err, err.stack)
+      res.json(err)
+    } else res.json({ path: 'video created', videoId: videoID })
+  })
+})
+
+app.post('/creators/video/publish', async (req, res) => {
+  const { userId } = getUserContext(req)
+  const { videoId } = req.body
+  const video: any = await getVideo(videoId, userId)
+  if (video.UploadStatus !== 'UPLOADED') res.json({message: 'Cannot publish a video record with no video!'})
+  const params = {
+    TableName: 'Videos',
+    Key: {
+      VideoId: videoId,
+      UserId: userId,
+    },
+    UpdateExpression:
+      'set Status=:p',
+    ExpressionAttributeValues: {
+      ':p': 'PUBLISHED',
+    },
+  }
+
+  dynamodb.update(params, function (err) {
+    if (err) {
+      console.log('Broke updating video', err, err.stack)
+      res.json(err)
+    } else res.json({ path: 'video published', videoId })
+  })
+})
+
 app.delete('/creators/video/:videoId', async (req, res) => {
   // TODO: some other time
 })

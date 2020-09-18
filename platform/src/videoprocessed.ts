@@ -43,7 +43,7 @@ export const handler = async (event: any, _: any, callback: any) => {
     },
     UpdateExpression: 'set UploadStatus=:s, VideoFilename=:k',
     ExpressionAttributeValues: {
-      ':s': 'UPLOADED',
+      ':s': 'PROCESSED',
       ':k': fileName,
     },
   }

@@ -17,6 +17,8 @@ export const EditVideo: React.FC<{
   const [uploading, setUploading] = useState(false)
   const [fileUploaded, setFileUploaded] = useState(false)
   const [progress, setProgress] = useState(0)
+  const [status, setStatus] = useState('Loading...')
+  const [uploadStatus, setUploadedStatus] = useState('N/A')
 
   const UploadVideo = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files ? e.target.files[0] : undefined
@@ -63,6 +65,7 @@ export const EditVideo: React.FC<{
         console.log('Uploaded!')
         setUploading(false)
         setFileUploaded(true)
+        setUploadedStatus('UPLOAD PENDING')
       })
       .catch((e) => {
         console.log('upload failed', e)
@@ -112,6 +115,9 @@ export const EditVideo: React.FC<{
         setTitle(video.Title)
         setDescription(video.Details.description)
         setLoading(false)
+        setStatus(video.Status)
+        setUploadedStatus(video.UploadStatus)
+        setFileUploaded(video.UploadStatus !== 'N/A')
       })
       .catch(function (error) {
         console.log(error)
@@ -125,6 +131,7 @@ export const EditVideo: React.FC<{
       <button onClick={(e) => setVideoID()}>return</button>
       <p>{message}</p>
       <form onSubmit={SaveVideo} className={styles.videoForm}>
+        <p>Status: {status}</p>
         <input
           type="text"
           value={title}
@@ -142,7 +149,7 @@ export const EditVideo: React.FC<{
         {uploading ? (
           <p>Uploading file... {progress}%</p>
         ) : fileUploaded ? (
-          <p>File uploaded!</p>
+          <p>File uploaded! Current file status: {uploadStatus}</p>
         ) : (
           <input type="file" name="file" onChange={(e) => UploadVideo(e)} />
         )}

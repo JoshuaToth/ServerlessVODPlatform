@@ -9,29 +9,45 @@ const App = () => {
     { username: string; session: string } | undefined
   >()
 
+  const [creatorMode, setCreatorMode] = useState(true)
+
   const [videoID, setVideoID] = useState<string | undefined>()
 
   // could put session into a provider so it doesn't have to be passed around maybe
   return (
     <div className="App">
       <header className="App-header">
-        {!userDetails ? (
+        <div>
+          <p>Switch Mode:</p>
+          <button onClick={() => setCreatorMode(!creatorMode)}>
+            {creatorMode ? 'Viewer' : 'Creator'}
+          </button>
+        </div>
+        {creatorMode ? (
           <div>
-            <h1>'Valvid, best gaming videos on the web!'</h1>
-            <Login setUserDetails={setUserDetails} />
+            {!userDetails ? (
+              <div>
+                <h1>'Valvid, best gaming videos on the web!'</h1>
+                <Login setUserDetails={setUserDetails} />
+              </div>
+            ) : (
+              <div>
+                <h1>Welcome {userDetails.username} :)</h1>
+                {videoID ? (
+                  <EditVideo
+                    sessionToken={userDetails.session}
+                    videoId={videoID}
+                    setVideoID={setVideoID}
+                  />
+                ) : (
+                  <MyVideos sessionToken={userDetails.session} setVideoID={setVideoID} />
+                )}
+              </div>
+            )}{' '}
           </div>
         ) : (
           <div>
-            <h1>Welcome {userDetails.username} :)</h1>
-            {videoID ? (
-              <EditVideo
-                sessionToken={userDetails.session}
-                videoId={videoID}
-                setVideoID={setVideoID}
-              />
-            ) : (
-              <MyVideos sessionToken={userDetails.session} setVideoID={setVideoID} />
-            )}
+          <h1>'Valvid, best gaming videos on the web!'</h1>
           </div>
         )}
       </header>

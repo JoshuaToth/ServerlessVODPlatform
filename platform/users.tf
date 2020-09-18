@@ -370,9 +370,23 @@ resource "aws_dynamodb_table" "videosTable" {
     type = "S"
   }
 
+  attribute {
+    name = "Status"
+    type = "S"
+  }
+
   global_secondary_index {
     name            = "VideosUserIndex"
     hash_key        = "UserId"
+    range_key       = "VideoId"
+    write_capacity  = 1
+    read_capacity   = 1
+    projection_type = "ALL"
+  }
+
+  global_secondary_index {
+    name            = "VideosStatusIndex"
+    hash_key        = "Status"
     range_key       = "VideoId"
     write_capacity  = 1
     read_capacity   = 1
@@ -642,14 +656,6 @@ resource "aws_cloudfront_distribution" "s3_distribution" {
   comment             = "Anything"
   default_root_object = "index.html"
 
-  # logging_config {
-  #   include_cookies = false
-  #   bucket          = "mylogs.s3.amazonaws.com"
-  #   prefix          = "myprefix"
-  # }
-
-  # aliases = ["mysite.example.com", "yoursite.example.com"]
-
   default_cache_behavior {
     allowed_methods  = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
     cached_methods   = ["GET", "HEAD"]
@@ -669,53 +675,6 @@ resource "aws_cloudfront_distribution" "s3_distribution" {
     max_ttl                = 86400
   }
 
-  # Cache behavior with precedence 0
-  # ordered_cache_behavior {
-  #   path_pattern     = "/content/immutable/*"
-  #   allowed_methods  = ["GET", "HEAD", "OPTIONS"]
-  #   cached_methods   = ["GET", "HEAD", "OPTIONS"]
-  #   target_origin_id = local.s3_origin_id
-
-  #   forwarded_values {
-  #     query_string = false
-  #     headers      = ["Origin"]
-
-  #     cookies {
-  #       forward = "none"
-  #     }
-  #   }
-
-  #   min_ttl                = 0
-  #   default_ttl            = 86400
-  #   max_ttl                = 31536000
-  #   compress               = true
-  #   viewer_protocol_policy = "redirect-to-https"
-  # }
-
-  # # Cache behavior with precedence 1
-  # ordered_cache_behavior {
-  #   path_pattern     = "/content/*"
-  #   allowed_methods  = ["GET", "HEAD", "OPTIONS"]
-  #   cached_methods   = ["GET", "HEAD"]
-  #   target_origin_id = local.s3_origin_id
-
-  #   forwarded_values {
-  #     query_string = false
-
-  #     cookies {
-  #       forward = "none"
-  #     }
-  #   }
-
-  #   min_ttl                = 0
-  #   default_ttl            = 3600
-  #   max_ttl                = 86400
-  #   compress               = true
-  #   viewer_protocol_policy = "redirect-to-https"
-  # }
-
-  # price_class = "PriceClass_200"
-
   restrictions {
     geo_restriction {
       restriction_type = "none"
@@ -730,6 +689,77 @@ resource "aws_cloudfront_distribution" "s3_distribution" {
     cloudfront_default_certificate = true
   }
 }
+
+#####
+# Viewers API
+#####
+
+resource "aws_api_gateway_resource" "viewers" {
+  rest_api_id = aws_api_gateway_rest_api.valvid.id
+  parent_id   = aws_api_gateway_rest_api.valvid.root_resource_id
+  path_part   = "viewers"
+}
+
+resource "aws_api_gateway_resource" "viewers_proxy" {
+  rest_api_id = aws_api_gateway_rest_api.valvid.id
+  parent_id   = aws_api_gateway_resource.viewers.id
+  path_part   = "{proxy+}"
+}
+
+resource "aws_api_gateway_method" "viewers_proxy" {
+  rest_api_id   = aws_api_gateway_rest_api.valvid.id
+  resource_id   = aws_api_gateway_resource.viewers_proxy.id
+  http_method   = "ANY"
+  authorization = "NONE"
+}
+
+module "cors_viewers" {
+  source  = "squidfunk/api-gateway-enable-cors/aws"
+  version = "0.3.1"
+
+  api_id          = aws_api_gateway_rest_api.valvid.id
+  api_resource_id = aws_api_gateway_resource.viewers_proxy.id
+}
+
+resource "aws_api_gateway_integration" "viewers_lambda" {
+  rest_api_id = aws_api_gateway_rest_api.valvid.id
+  resource_id = aws_api_gateway_method.viewers_proxy.resource_id
+  http_method = aws_api_gateway_method.viewers_proxy.http_method
+
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = aws_lambda_function.viewers.invoke_arn
+}
+
+resource "aws_lambda_permission" "apigw_viewers" {
+  statement_id  = "AllowAPIGatewayInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.viewers.function_name
+  principal     = "apigateway.amazonaws.com"
+
+  # The "/*/*" portion grants access from any method on any resource
+  # within the API Gateway REST API.
+  source_arn = "${aws_api_gateway_rest_api.valvid.execution_arn}/*/*"
+}
+
+resource "aws_lambda_function" "viewers" {
+  function_name = "WiewersWorkflow"
+
+  s3_bucket = "valvid-terraform"
+  s3_key    = "v${var.app_version}/valvid.zip"
+
+  handler = "viewers.handler"
+  runtime = "nodejs12.x"
+  timeout = 5
+  role    = aws_iam_role.lambda_exec.arn
+  depends_on = [
+    aws_iam_role_policy_attachment.lambda_logs,
+    aws_dynamodb_table.usersTable,
+    aws_dynamodb_table.videosTable
+  ]
+}
+
+#####
 
 # Outputs
 output "base_url" {
