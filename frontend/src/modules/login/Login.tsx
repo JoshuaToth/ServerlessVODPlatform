@@ -6,7 +6,7 @@ import { USERS_URL } from '../../utils/consts'
 export const Login: React.FC<{ setUserDetails: (details: any) => void }> = ({
   setUserDetails,
 }) => {
-  const [email, setEmail] = useState('tothy4+boo@gmail.com')
+  const [email, setEmail] = useState('yourcustomemail@gmail.com')
   const [password, setPassword] = useState('!CoolPassw0Rd')
   const [username, setUsername] = useState('1337Gmr')
   const [loading, setLoading] = useState(false)
